@@ -81,6 +81,8 @@ function legendMouseOver(gen) {
             return null;
         }
         return"none"});
+    
+    globalLegendGenre = gen;
     Draw_Scatterplot(selected);
 }
 
@@ -104,11 +106,14 @@ function legendMouseOut() {
     }
 }
 
+var globalLegendGenre;
 function legendClick(gen) {
-    if (legendisClicked)
+    if (legendisClicked) {
         foreground.style("display", null);
+    }
     else
         legendMouseOver(gen);
+    globalLegendGenre = gen;
     legendisClicked = !legendisClicked;
 }
 

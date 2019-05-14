@@ -1,7 +1,6 @@
 var raw_dataset = [];
 var dataset = [];
 var audioData = [];
-const testSize = 8000; // The size of our test data for development speed
 var topGenresAll = [];           // Must not be greater than the size of our precomputed
 var topGenres20 = [];            // t-SNE result if we are using it
 
@@ -11,33 +10,73 @@ var genres = [];
 var genresByYear = {};
 // var genresCount = [];
 
-d3.csv("./Dataset/dataset_full(optimal).csv")
+let testSizeString = prompt("Enter data test-size", "200");
+const TEST_SIZE = +testSizeString; // The size of our test data for development speed
+
+let featuresPerSetString = prompt("Enter the number of features per set:", "224");
+const FEATURES_PER_SET = +featuresPerSetString;
+
+let featureSet = prompt("Enter the number of the set you wish you analyze:", "0");
+const FEATURE_SET = 0;
+
+var featureFields = [];
+d3.csv("./Dataset/dataset_full(echonest_features+tracks).csv")
     .row(function (d) {
-        audioData.push([
-            +d.acousticness,
-            +d.danceability,
-            +d.energy,
-            +d.instrumentalness,
-            +d.liveness,
-            +d.speechiness,
-            +d.tempo,
-            +d.valence]);
+        let featureSetOffset = FEATURE_SET * FEATURES_PER_SET;
+        let featureKeys = [];
+        let featureNumber;
+        for (let i = 0; i < FEATURES_PER_SET; i++) {
+            featureNumber = featureSetOffset + i;
+            let featurePropertyName = "echonest_temporal_features" + featureNumber.toString();
+          
+            if (!featureFields.hasOwnProperty(featureNumber)) {
+                featureFields[featureNumber] = [];
+            }
+            featureFields[featureNumber].push(+d[featurePropertyName]);
+            featureKeys.push(+d[featurePropertyName]);
+        }
+        audioData.push([...featureKeys]);
         return d;
     })
     .get(function (error, songData) {
         raw_dataset = songData;     // Save a copy of the raw dataset
-        audioData = audioData.slice(0, testSize); // Limit the test data for quick debugging
-        dataset = songData.slice(0, testSize);
+        audioData.columns = songData.columns;   // Gets erased later :( - not absolutely necessary, but could be useful to fix
+        
+        audioData = audioData.slice(0, TEST_SIZE); // Limit the test data for quick debugging
+        dataset = songData.slice(0, TEST_SIZE);
         dataset.columns = songData.columns;
+    
+        featureFields = featureFields.map(function(field) {
+            field = field.slice(0, TEST_SIZE);
+            let rangeMinMax = d3.extent(field);
+            field.minValue = rangeMinMax[0];
+            field.maxValue = rangeMinMax[1];
+            
+            return field;
+        });
+    
+        audioData = audioData.map(function(row, rowNumber) {
+            row = row.map(function(featureValue, featureNumber) {
+                let featurePropertyName = "echonest_temporal_features" + featureNumber.toString();
+            
+                featureValue = (featureValue - featureFields[featureNumber].minValue) / (featureFields[featureNumber].maxValue - featureFields[featureNumber].minValue);
+            
+                dataset[rowNumber][featurePropertyName] = featureValue;
+                
+                return featureValue;
+            });
+            
+            return row;
+        });
 
         //get audiodata for k-mean cluster, assign the genre for each datapoint
         audioData.forEach((d, i) => {
             d.genre = dataset[i].genre
-        })
-
+        });
 
         // get features that used for mutlti-dimension coordinates
         features = songData.columns.slice(1, 10);
+        features = features.concat(songData.columns.slice(15,15 + FEATURES_PER_SET));
         xScale.domain(features);
 
         // Doing Time Slider
@@ -63,14 +102,21 @@ d3.csv("./Dataset/dataset_full(optimal).csv")
             }
         });
 
-
         topGenresAll = CountGenres(dataset);
         topGenres20 = topGenresAll.slice(0, 20);
 
         // add genres after sorting
         genres = topGenresAll.map(d => d.genre);
-
-        UpdateDataTSNE(bigdata.slice(0, testSize));
+    
+        startWorker({dataset:audioData,
+            epsilon: 1,        // epsilon is learning rate (10 = default)
+            perplexity: 30,    // roughly how many neighbors each point influences (30 = default)
+            iterations: 500,
+            feature_set: FEATURE_SET, // The number for the set of features that are being analyzed
+            features_per_set: FEATURES_PER_SET   // The amount of features in the set
+        });
+        
+        //UpdateDataTSNE(bigdata.slice(0, TEST_SIZE));
         drawSlider();
         graphByYear(dataset, sliderTime.value());
         document.getElementById("genreContainer").style.display = "none";
@@ -85,8 +131,6 @@ d3.csv("./Dataset/dataset_full(optimal).csv")
         // var clusters = clusterfck.hcluster(audioData, clusterfck.EUCLIDEAN_DISTANCE,
         //     clusterfck.AVERAGE_LINKAGE, threshold);
         // console.log(clusters)
-
-
     });
 
 // Count the genres and return a descending frequency-ordered list of top genres
@@ -171,6 +215,13 @@ const circleOpacity = "0.75";
 
 // Draw a scatterplot from the given data
 function Draw_Scatterplot(data) {
+    if (legendisClicked) {
+        data = data.filter(function(d) {
+            return d.genre === globalLegendGenre;
+        });
+    }
+    
+    
     const xScale = d3.scaleLinear()
         .domain(getExtent(data, "x"))
         .range([0, contentWidth]);
@@ -185,10 +236,7 @@ function Draw_Scatterplot(data) {
         //Exit
         selection.exit().remove();
         //Enter
-        // Define the div for the tooltip
-        div = d3.select("body").append("div")
-            .attr("class", "tooltip")
-            .style("opacity", 0);
+      
         const newElements = selection.enter()
             .append('circle')
             .attr("class", "compute")
@@ -211,7 +259,7 @@ function Draw_Scatterplot(data) {
             .on("mouseover", function (d) {
                 MouseOverCircles(d);
                 MouseOverLines(d);
-                MouseOvertooltip(d);
+                MouseOverTooltip(d);
             })
             .on("mouseout", function (d) {
                 MouseOutCircles(d);
@@ -250,11 +298,17 @@ function MouseOverCircles(d) {
 
 }
 
-function MouseOvertooltip(d) {
-    div.transition()
+
+// Define the div for the tooltip
+let toolTipDiv = d3.select("body").append("div")
+.attr("class", "tooltip")
+.style("opacity", 0);
+
+function MouseOverTooltip(d) {
+    toolTipDiv.transition()
         .duration(200)
         .style("opacity", .9);
-    div.html("Genre:" + d.genre + "<br/>" +
+    toolTipDiv.html("Genre:" + d.genre + "<br/>" +
         "Acousticness:" + d.acousticness.toFixed(2) + "<br/>" +
         "Danceability:" + d.danceability.toFixed(2) + "<br/>" +
         "Duration:" + d.duration + "<br/>" +
@@ -271,7 +325,7 @@ function MouseOutCircles(d) {
     d3.select("#circle" + d.track_id)
         .select("text")
         .remove();
-    div.transition()
+    toolTipDiv.transition()
         .duration(500)
         .style("opacity", 0);
 }

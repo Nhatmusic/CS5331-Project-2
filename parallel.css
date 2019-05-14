@@ -68,8 +68,8 @@ svg {
     float: left;
     border: 1px solid black;
     position:absolute;
-    width:705px;
-    height:400px;
+    width:1800px;
+    height:350px;
 }
 .filter{
     top:40px;
@@ -80,7 +80,8 @@ svg {
     float: left;
     border: 1px solid black;
     position:absolute;
-    left:713px;
+    top:560px;
+    left:9px;
     width:630px;
     height:400px;
 }
@@ -165,8 +166,8 @@ h2 {
 }
 div.tooltip {
     position: absolute;
-    top: 205px;
-    left:1220px;
+    top: 560px;
+    left:515px;
     text-align: left;
     width: 120px;
     height: 130px;

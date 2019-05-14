@@ -1,7 +1,7 @@
 // console.log('1111111111');
 
 // Info to show visualization
-var parallelWidth = 630, parallelHeight = 300,
+var parallelWidth = 1790, parallelHeight = 300,
     parallelMargin = {top: 30, right: 20, bottom: 30, left: 30},
     parallelContentWidth = parallelWidth - parallelMargin.left - parallelMargin.right,
     parallelContentHeight = parallelHeight - parallelMargin.top - parallelMargin.bottom;
@@ -258,6 +258,8 @@ function drawGraph(songs, year, selectedGenres) {
                 d3.select(this).call(d3.axisRight(yScale[d]));
             else if (d == "duration")
                 d3.select(this).call(d3.axisLeft(yScale[d]).ticks(5).tickFormat(d3.format(",")));
+            else if (d.includes("echonest_temporal_features"))
+                d3.select(this).call(d3.axisLeft(yScale[d]).ticks(0));
             else
                 d3.select(this).call(d3.axisLeft(yScale[d]).ticks(5));
         })
@@ -270,6 +272,8 @@ function drawGraph(songs, year, selectedGenres) {
                 return d + "(s)";
             if (d == "tempo")
                 return d + "(bpm)";
+            if (d.includes("echonest_temporal_features"))
+                return null;
             return d;
         });
 
@@ -277,7 +281,7 @@ function drawGraph(songs, year, selectedGenres) {
     xAxisGroup.append("g")
         .attr("class", "brush")
         .each(function (d) {
-            if (d != "genre") {
+            if (d != "genre" && !d.includes("echonest_temporal_features")) {
                 d3.select(this).call(yScale[d].brush = d3.brushY()
                     .extent([[-10, 0], [10, parallelContentHeight]])
                     .on("brush", brush)
@@ -316,7 +320,7 @@ function MouseOverLines(d) {
         .style("font", "12px sans-serif")
         .attr("y", -5)
         .text(feature => {
-            if (feature != "genre")
+            if (feature != "genre" && !feature.includes("echonest_temporal_features"))
                 return d[feature].toFixed(2);
         });
 }
