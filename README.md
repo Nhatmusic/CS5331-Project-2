@@ -29,7 +29,7 @@ Source of audio features collected in Spotify (https://towardsdatascience.com/is
 - We are so excited to learn about T-SNE, t-Distributed Stochastic Neighbor Embedding is a (prize-winning) technique for dimensionality reduction that is particularly well suited for the visualization of high-dimensional datasets.
 - We decided to use the T-Sne library in Javascript (https://github.com/karpathy/tsnejs)
 - However, we are unable to process all 13,127 datapoints (songs) (each has 8-dimensions) in web browser, we tried process the wholde dataset in Node.js also. Finally, we decided to use the first 8000 songs in our dataset and we think it preserved much information needed for our visualization.
-![Alt text](https://github.com/Nhatmusic/CS5331-Project-2/blob/master/Dataset/tsne.gif)
+![Alt text](https://github.com/Nhatmusic/CS5331-Project-2/blob/348a1575b55b4dbbd9da1c4d4489ec7ddd20a666/Dataset/tsne.gif)
 - The above image is the test example of processing 500 datapoints using T-SNE. However, with 8000 datapoints, it takes about 30 minutes (we used webworker) to complete so we chose to pre-computed the output of tsne.
 
 # Functionality:
